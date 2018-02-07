@@ -168,3 +168,4 @@ installed),
 - If you already have a Tensorflow-GPU > 1, then the above `./make.sh` works.
 - If you see error message "tensorflow.python.framework.errors_impl.NotFoundError: YOUR_FOLDER/roi_pooling.so: undefined symbol: _ZN10tensorflow7strings6StrCatB5cxx11ERKNS0_8AlphaNumES3_", it is related to compilation of roi_pooling layer. A simple fix will be changing "GLIBCXX_USE_CXX11_ABI=1" to "GLIBCXX_USE_CXX11_ABI=0" in "src/net/lib/make.sh" (line 17)
 
+test
