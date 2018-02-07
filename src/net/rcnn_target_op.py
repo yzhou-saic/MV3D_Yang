@@ -38,8 +38,7 @@ def rcnn_target(rois, gt_labels, gt_boxes, gt_boxes3d):
         fg_inds = np.random.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
 
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
-    bg_inds = np.where((max_overlaps < CFG.TRAIN.RCNN_BG_THRESH_HI) &
-                       (max_overlaps >= CFG.TRAIN.RCNN_BG_THRESH_LO))[0]
+    bg_inds = np.where(max_overlaps < CFG.TRAIN.RCNN_BG_THRESH_HI)[0]
     bg_rois_per_this_image = rois_per_image - fg_rois_per_this_image
     bg_rois_per_this_image = int(min(bg_rois_per_this_image, bg_inds.size))
     if bg_inds.size > 0:
@@ -110,7 +109,7 @@ def fusion_target(rois, gt_labels, gt_boxes, gt_boxes3d):
     keep   = np.append(fg_inds, fp_inds)
     rois   = extended_rois[keep]
     labels = labels[keep]                # Select sampled values from various arrays:
-    labels[fg_inds.size:] = 0  # Clamp la bels for the background RoIs to 0
+    labels[fg_inds.size:] = 0  # Clamp labels for the background RoIs to 0
 
 
     gt_boxes3d = gt_boxes3d[gt_assignment[keep]]

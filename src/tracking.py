@@ -39,7 +39,7 @@ def pred_and_save(tracklet_pred_dir, dataset,frame_offset=0, log_tag=None, weigh
     # fix this if has more time
     for i in range(dataset.size-1 if fast_test == False else frame_offset + 1):
 
-        rgb, top, front, _, _, frame_id = dataset.load()
+        rgb, top, front, _, _, frame_id, calib = dataset.load()
 
         # handling multiple bags.
         current_bag = frame_id.split('/')[1]

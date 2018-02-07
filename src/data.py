@@ -1,7 +1,7 @@
 from kitti_data import pykitti
 # from kitti_data.pykitti.tracklet import parseXML, TRUNC_IN_IMAGE, TRUNC_TRUNCATED
 # from kitti_data.draw import *
-from kitti_data.io import *
+from io import *
 import net.utility.draw as draw
 from net.processing.boxes3d import *
 from config import TOP_X_MAX,TOP_X_MIN,TOP_Y_MAX,TOP_Z_MIN,TOP_Z_MAX, \
@@ -31,22 +31,36 @@ class Preprocess(object):
 
     def __init__(self):
 
-        self.labels_map = {
-            #background
-            'background':0,
-            #car
-            'Van':1,
-            'Truck': 1,
-            'Car': 1,
-            'Tram': 1,
-            #Pedestrian
-            'Pedestrian':2
-        }
 
         if config.cfg.SINGLE_CLASS_DETECTION==False:
             self.n_class = max([self.labels_map[key] for key in self.labels_map]) + 1
+            self.labels_map = {
+                'background':0,
+                'Car': 1,
+                'Pedestrian':2,
+                'Cyclist': 3,
+                'Van':4,
+                'Truck': 5,
+                'Tram': 6,
+            }
         else:
             self.n_class = 2
+            if config.cfg.OBJ_TYPE == 'car':
+                self.labels_map = {
+                    'background':0,
+                    'Car': 1,
+                    'Van':1,
+                }
+            elif config.cfg.OBJ_TYPE == 'ped':
+                self.labels_map = {
+                    'background':0,
+                    'Pedestrian':1,
+                }
+            elif config.cfg.OBJ_TYPE == 'cyclist':
+                self.labels_map = {
+                    'background':0,
+                    'Cyclist': 1
+                }
 
     @property
     def num_class(self):
@@ -55,6 +69,16 @@ class Preprocess(object):
     def rgb(self, rgb):
         rgb = crop_image(rgb)
         return rgb
+
+    def bbox3d_cam_to_velo(self, obj, cam_to_velo):
+        # cam_corners: 3 x 8   cam_to_velo: 4 x 4
+        cam_corners = box3d_compose_in_camera_cord_kitti(obj.x, obj.y, obj.z, obj.w, obj.h, obj.l, obj.rot_y)
+        cam_corners = np.vstack((cam_corners, np.ones((1, 8), dtype=cam_corners.dtype)))
+        # 4 x 8
+        box3d = np.dot(cam_to_velo, cam_corners)
+        box3d = box3d[:3, :].T
+        # 8 x 3
+        return box3d
 
 
     def bbox3d(self, obj):
@@ -234,6 +258,7 @@ def clidar_to_top(lidar):
     Xn = int((TOP_X_MAX - TOP_X_MIN) / TOP_X_DIVISION)
     Yn = int((TOP_Y_MAX - TOP_Y_MIN) / TOP_Y_DIVISION)
     Zn = int((TOP_Z_MAX - TOP_Z_MIN) / TOP_Z_DIVISION)
+
 
     top_flip = np.ones((Xn, Yn, Zn + 2), dtype=np.float32)  # DON'T CHANGE THIS !
 
@@ -681,6 +706,10 @@ def data_in_single_driver(raw_dir, date, drive, frames_index=None):
         #     cv2.imwrite(save_preprocess_dir + '/top_image/top_rois'+date+'_'+drive+'.png', mean_image)
 
 
+
+
+
+
 def preproces(mapping, frames_index):
     # if mapping is none, using all dataset under raw_data_sets_dir.
     if mapping is None:
@@ -779,7 +808,5 @@ if __name__ == '__main__':
     preproces(data_dir, frames_index)
 
     print('use time : {}'.format(time.time()-t0))
-
-
 
 

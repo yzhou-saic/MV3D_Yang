@@ -34,15 +34,22 @@ __C.OBJ_TYPE = 'car' #'car' 'ped'
 # Root directory of project
 __C.ROOT_DIR = osp.abspath(osp.join(osp.dirname(__file__), '..'))
 
-if __C.DATA_SETS_TYPE=='test':
-    __C.DATA_SETS_DIR = osp.abspath('/home/stu/round12_data_test')
-else:
-    __C.DATA_SETS_DIR=osp.join(__C.ROOT_DIR, 'data')
+__C.DATA_SETS_DIR=osp.join(__C.ROOT_DIR, 'data', __C.DATA_SETS_TYPE)
 
-__C.RAW_DATA_SETS_DIR = osp.join(__C.DATA_SETS_DIR, 'raw', __C.DATA_SETS_TYPE)
-__C.PREPROCESSED_DATA_SETS_DIR = osp.join(__C.DATA_SETS_DIR, 'preprocessed', __C.DATA_SETS_TYPE)
-__C.PREPROCESSING_DATA_SETS_DIR = osp.join(__C.DATA_SETS_DIR, 'preprocessing', __C.DATA_SETS_TYPE)
-__C.PREDICTED_XML_DIR = osp.join(__C.DATA_SETS_DIR, 'predicted', __C.DATA_SETS_TYPE)
+__C.RAW_DATA_SETS_DIR = osp.join(__C.DATA_SETS_DIR, 'raw')
+# for reading kitti raw tags
+__C.MAPPING_FILE = osp.join(__C.RAW_DATA_SETS_DIR, 'devkit_object', 'mapping', 'train_mapping.txt')
+__C.RAND_MAP = osp.join(__C.RAW_DATA_SETS_DIR, 'devkit_object', 'mapping', 'train_rand.txt')
+# for reading well-splitted tags for train.txt and val.txt
+__C.TRAIN_LIST = osp.join(__C.RAW_DATA_SETS_DIR, 'ImageSets', 'train.txt')
+__C.VAL_LIST   = osp.join(__C.RAW_DATA_SETS_DIR, 'ImageSets', 'val.txt')
+__C.TEST_LIST   = osp.join(__C.RAW_DATA_SETS_DIR, 'ImageSets', 'test.txt')
+__C.TRAIN_VAL_LIST   = osp.join(__C.RAW_DATA_SETS_DIR, 'ImageSets', 'trainval.txt')
+
+
+__C.PREPROCESSED_DATA_SETS_DIR = osp.join(__C.DATA_SETS_DIR, 'preprocessed')
+__C.PREPROCESSING_DATA_SETS_DIR = osp.join(__C.DATA_SETS_DIR, 'preprocessing')
+__C.PREDICTED_XML_DIR = osp.join(__C.DATA_SETS_DIR, 'predicted')
 
 __C.CHECKPOINT_DIR=osp.join(__C.ROOT_DIR,'checkpoint')
 __C.LOG_DIR=osp.join(__C.ROOT_DIR,'log')
@@ -51,7 +58,7 @@ __C.USE_RESNET_AS_TOP_BASENET = True
 __C.TOP_CONV_KERNEL_SIZE = 32   #default 3
 
 __C.IMAGE_FUSION_DIABLE = False
-__C.RGB_BASENET = 'resnet'  # 'resnet' 'xception' 'VGG'
+__C.RGB_BASENET = 'xception'  # 'resnet' 'xception' 'VGG'
 if __C.RGB_BASENET == 'xception':
     __C.USE_IMAGENET_PRE_TRAINED_MODEL = True
 else:
@@ -131,20 +138,21 @@ elif __C.DATA_SETS_TYPE == 'didi2':
         raise ValueError('unknown type:{}'.format(__C.OBJ_TYPE))
 
 elif __C.DATA_SETS_TYPE == 'kitti':
-    TOP_Y_MIN = -30
-    TOP_Y_MAX = +30
+    TOP_Y_MIN = -40
+    TOP_Y_MAX = +40
     TOP_X_MIN = 0
-    TOP_X_MAX = 100
-    TOP_Z_MIN = -3.5
-    TOP_Z_MAX = 0.6
+    TOP_X_MAX = 70.4
+    TOP_Z_MIN = -2.5
+    TOP_Z_MAX = 0.5
 
-    TOP_X_DIVISION = 0.2
-    TOP_Y_DIVISION = 0.2
-    TOP_Z_DIVISION = 0.3
+    TOP_X_DIVISION = 0.1
+    TOP_Y_DIVISION = 0.1
+    TOP_Z_DIVISION = 0.5
 else:
     raise ValueError('unexpected type in cfg.DATA_SETS_TYPE item: {}!'.format(__C.DATA_SETS_TYPE))
 
 
+"""
 if __C.DATA_SETS_TYPE == 'kitti':
     MATRIX_Mt = ([[  2.34773698e-04,   1.04494074e-02,   9.99945389e-01,  0.00000000e+00],
                   [ -9.99944155e-01,   1.05653536e-02,   1.24365378e-04,  0.00000000e+00],
@@ -154,6 +162,8 @@ if __C.DATA_SETS_TYPE == 'kitti':
     MATRIX_Kt = ([[ 721.5377,    0.    ,    0.    ],
                   [   0.    ,  721.5377,    0.    ],
                   [ 609.5593,  172.854 ,    1.    ]])
+"""
+
 
 # if timer is needed.
 __C.TRAINING_TIMER = True

@@ -56,11 +56,11 @@ def make_bases(
     scales=2**np.arange(3, 6)):
 
     """  Generate bases by enumerating aspect ratios * scales, wrt a reference (0, 0, 15, 15)  base (box). """
-
     base        = np.array([1, 1, base_size, base_size]) - 1
     ratio_bases = make_bases_given_ratios(base, ratios)
     bases = np.vstack(
         [make_bases_given_scales(ratio_bases[i, :], scales) for i in range(ratio_bases.shape[0])])
+
     return bases
 
 
@@ -100,7 +100,7 @@ def make_anchors(bases, stride, image_shape, feature_shape, allowed_border=0):
 
     B  = len(bases)
     HW = len(shifts)
-    anchors   = (bases.reshape((1, B, 4)) + shifts.reshape((1, HW, 4)).transpose((1, 0, 2)))
+    anchors   = bases.reshape((1, B, 4)) + shifts.reshape((1, HW, 4)).transpose((1, 0, 2))
     anchors   = anchors.reshape((HW * B, 4)).astype(np.int32)
     num_anchors = int(HW * B)
 
@@ -135,6 +135,8 @@ def rpn_target( anchors, inside_inds, gt_labels,  gt_boxes):
              labels: pos_neg_inds's labels
              targets:  positive samples's bias to ground truth (top view bounding box regression targets)
     """
+    # inside_inds = np.append(inside_inds, np.arange(len(anchors), len(anchors) + len(gt_boxes)))
+    # anchors = np.vstack((anchors, gt_boxes))
     inside_anchors = anchors[inside_inds, :]
 
     # label: 1 is positive, 0 is negative, -1 is dont care
@@ -147,8 +149,11 @@ def rpn_target( anchors, inside_inds, gt_labels,  gt_boxes):
         np.ascontiguousarray(gt_boxes, dtype=np.float))
 
     argmax_overlaps    = overlaps.argmax(axis=1)
+    # for each inside anchors, the largest overlapped gt box
     max_overlaps       = overlaps[np.arange(len(inside_inds)), argmax_overlaps]
+
     gt_argmax_overlaps = overlaps.argmax(axis=0)
+    # for each gt, the largest overlapped anchor
     gt_max_overlaps    = overlaps[gt_argmax_overlaps, np.arange(overlaps.shape[1])]
     gt_argmax_overlaps = np.where(overlaps == gt_max_overlaps)[0]
 

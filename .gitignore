@@ -28,3 +28,7 @@ bag_to_kitti/lidar/cmake-build-debug
 \.project
 checkpoint
 log
+data
+pretrained_weights
+experiments
+external_modules

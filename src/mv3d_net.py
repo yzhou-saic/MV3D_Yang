@@ -20,7 +20,7 @@ from keras.layers import (
     BatchNormalization,
     MaxPooling2D
     )
-import config
+from net.configuration import *
 
 top_view_rpn_name = 'top_view_rpn'
 imfeature_net_name = 'image_feature'
@@ -98,9 +98,6 @@ def top_feature_net_r(input, anchors, inds_inside, num_bases):
     :return: 
             top_features, top_scores, top_probs, top_deltas, proposals, proposal_scores
     """
-    stride=1.
-    #with tf.variable_scope('top-preprocess') as scope:
-    #    input = input
     batch_size, img_height, img_width, img_channel = input.get_shape().as_list()
 
     with tf.variable_scope('feature-extract-resnet') as scope:
@@ -117,7 +114,6 @@ def top_feature_net_r(input, anchors, inds_inside, num_bases):
         block = upsample2d(block, factor=2, has_bias=True, trainable=True, name='upsampling')
 
 
-
     with tf.variable_scope('predict') as scope:
         # block = upsample2d(block, factor=4, has_bias=True, trainable=True, name='1')
         # up     = block
@@ -129,19 +125,26 @@ def top_feature_net_r(input, anchors, inds_inside, num_bases):
         probs = tf.nn.softmax(tf.reshape(scores, [-1, 2]), name='prob')
         deltas = conv2d(block, num_kernels=4 * num_bases, kernel_size=(1, 1), stride=[1, 1, 1, 1], padding='SAME',name='delta')
 
-    #<todo> flip to train and test mode nms (e.g. different nms_pre_topn values): use tf.cond
-    with tf.variable_scope('NMS') as scope:    #non-max
 
-        img_scale = 1
-        rois, roi_scores = tf_rpn_nms( probs, deltas, anchors, inds_inside,
-                                       stride, img_width, img_height, img_scale,
-                                       nms_thresh=0.3, min_size=stride, nms_pre_topn=6000, nms_post_topn=100,
-                                       name ='nms')
+    with tf.variable_scope('RPN-NMS') as scope:
+
+        train_rois, train_roi_scores = tf_rpn_nms( probs, deltas, anchors, inds_inside, \
+                                       top_anchors_stride, img_width, img_height, img_scale=1, \
+                                       nms_thresh=0.7, min_size=top_anchors_stride, \
+                                       nms_pre_topn=CFG.TRAIN.RPN_NMS_PRE_TOPN, nms_post_topn=CFG.TRAIN.RPN_NMS_POST_TOPN, \
+                                       name ='train-rpn-nms')
+
+        infer_rois, infer_roi_scores = tf_rpn_nms( probs, deltas, anchors, inds_inside, \
+                                       top_anchors_stride, img_width, img_height, img_scale=1, \
+                                       nms_thresh=0.1, min_size=top_anchors_stride, \
+                                       nms_pre_topn=CFG.TRAIN.RPN_NMS_PRE_TOPN, nms_post_topn=CFG.TEST.RPN_NMS_POST_TOPN, \
+                                       name ='infer-rpn-nms')
 
 
+    print ('top: anchor stride=%d, feature_stride=%d'%(top_anchors_stride, top_feature_stride))
+    return feature, scores, probs, deltas, train_rois, train_roi_scores, top_anchors_stride,top_feature_stride, \
+            infer_rois, infer_roi_scores
 
-    print ('top: scale=%f, stride=%d'%(1./stride, stride))
-    return feature, scores, probs, deltas, rois, roi_scores, top_anchors_stride,top_feature_stride
 
 
 
@@ -203,6 +206,16 @@ def rgb_feature_net_r(input):
 
     print ('rgb : scale=%f, stride=%d'%(1./stride, stride))
     return feature, stride
+
+def rgb_feature_net_xcep(input):
+    stride = 16
+    with tf.variable_scope('feature_extract'):
+        xception_model = xcep.Xception(include_top=False,  weights='imagenet', input_tensor=input)
+        xcep_feature = xception_model.get_layer(name='add_11').output
+        rgb_featue = upsample2d(xcep_feature, factor=4, has_bias=True, trainable=True, name='upsampling')
+        stride /= 4
+    print ('xcep : stride=%d'%(stride))
+    return rgb_featue, stride
 
 
 def rgb_feature_net_x(input):
@@ -489,8 +502,8 @@ def load(top_shape, front_shape, rgb_shape, num_class, len_bases):
     with tf.variable_scope(top_view_rpn_name):
         # top feature
         if cfg.USE_RESNET_AS_TOP_BASENET==True:
-            top_features, top_scores, top_probs, top_deltas, proposals, proposal_scores, \
-            top_anchors_stride, top_feature_stride = \
+            top_features, top_scores, top_probs, top_deltas, train_proposals, train_proposal_scores, \
+            top_anchors_stride, top_feature_stride, infer_proposals, infer_proposal_scores = \
                 top_feature_net_r(top_view, top_anchors, top_inside_inds, len_bases)
         else:
             top_features, top_scores, top_probs, top_deltas, proposals, proposal_scores, top_feature_stride = \
@@ -510,12 +523,14 @@ def load(top_shape, front_shape, rgb_shape, num_class, len_bases):
         if cfg.RGB_BASENET =='resnet':
             rgb_features, rgb_stride= rgb_feature_net_r(rgb_images)
         elif cfg.RGB_BASENET =='xception':
-            rgb_features, rgb_stride = rgb_feature_net_x(rgb_images)
+            #rgb_features, rgb_stride = rgb_feature_net_x(rgb_images)
+            rgb_features, rgb_stride = rgb_feature_net_xcep(rgb_images)
         elif cfg.RGB_BASENET =='VGG':
             rgb_features, rgb_stride = rgb_feature_net(rgb_images)
 
     with tf.variable_scope('front_feature_net') as scope:
         front_features = front_feature_net(front_view)
+
 
     #debug roi pooling
     # with tf.variable_scope('after') as scope:
@@ -562,6 +577,7 @@ def load(top_shape, front_shape, rgb_shape, num_class, len_bases):
             fuse_cls_loss, fuse_reg_loss = fuse_loss(fuse_scores, fuse_deltas, fuse_labels, fuse_targets)
 
 
+
     return {
         'top_anchors':top_anchors,
         'top_inside_inds':top_inside_inds,
@@ -581,8 +597,10 @@ def load(top_shape, front_shape, rgb_shape, num_class, len_bases):
         'top_scores': top_scores,
         'top_probs': top_probs,
         'top_deltas': top_deltas,
-        'proposals': proposals,
-        'proposal_scores': proposal_scores,
+        'train_proposals': train_proposals,
+        'train_proposal_scores': train_proposal_scores,
+        'infer_proposals': infer_proposals,
+        'infer_proposal_scores': infer_proposal_scores,
 
         'top_inds': top_inds,
         'top_pos_inds':top_pos_inds,

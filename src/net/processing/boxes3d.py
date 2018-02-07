@@ -132,35 +132,20 @@ def convert_points_to_croped_image(img_points):
 
 
 @jit
-def box3d_to_rgb_box(boxes3d, Mt=None, Kt=None):
+def box3d_to_rgb_box(boxes3d, calib_velo_to_rgb):
     if (cfg.DATA_SETS_TYPE == 'kitti'):
-        if Mt is None: Mt = np.array(MATRIX_Mt)
-        if Kt is None: Kt = np.array(MATRIX_Kt)
-
         num  = len(boxes3d)
         projections = np.zeros((num,8,2),  dtype=np.int32)
         for n in range(num):
             box3d = boxes3d[n]
+            # 8 x 4
             Ps = np.hstack(( box3d, np.ones((8,1))) )
-            Qs = np.matmul(Ps,Mt)
-            Qs = Qs[:,0:3]
-            qs = np.matmul(Qs,Kt)
-            zs = qs[:,2].reshape(8,1)
-            qs = (qs/zs)
-            projections[n] = qs[:,0:2]
-        return projections
+            #  4 x 4, 8 x 4 -> 4 x 8
+            Projected = np.dot(calib_velo_to_rgb, Ps.T)
+            Projected = Projected[0:2, :] / Projected[2, :]
+            projections[n] = Projected.T
 
-    else:
-        num = len(boxes3d)
-        projections = np.zeros((num, 8, 2), dtype=np.int32)
-        for n in range(num):
-            box3d=boxes3d[n].copy()
-            if np.sum(box3d[:,0]>0) >0:
-                box2d = box3d_to_rgb_projection_cv2(box3d)
-                box2d,out_range=convert_points_to_croped_image(box2d)
-                if np.sum(out_range==False)>=2:
-                    projections[n]=box2d
-        return projections
+    return projections
 
 
 @jit
@@ -357,6 +342,27 @@ def boxes3d_decompose(boxes3d):
     size = np.c_[H,W,L]
     rotation= np.c_[R_x,R_y,R_z]
     return translation,size,rotation
+
+@jit
+def box3d_compose_in_camera_cord_kitti(x, y, z, w, h, l, rot_y):
+    """
+    only support compose one box, return 3 x 8
+    """
+    reference_3dbox = np.array([  # in camera coordinates around zero point and without orientation yet\
+        [-l / 2, -l / 2, l / 2, l / 2, -l / 2, -l / 2, l / 2, l / 2], \
+        [0.0, 0.0, 0.0, 0.0, -h, -h, -h, -h], \
+        [w / 2, -w / 2, -w / 2, w / 2, w / 2, -w / 2, -w / 2, w / 2]])
+
+
+    # re-create 3D bounding box in camera coordinate system
+    rotMat = np.array([ \
+        [np.cos(rot_y), 0.0, np.sin(rot_y)], \
+        [0.0, 1.0, 0.0], \
+        [-np.sin(rot_y), 0.0, np.cos(rot_y)]])
+
+    cornerPosInCamera = np.dot(rotMat, reference_3dbox) + np.tile(np.array([x, y, z]), (8, 1)).T
+
+    return cornerPosInCamera
 
 
 @jit

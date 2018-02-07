@@ -21,27 +21,34 @@ def get_test_tags(bags):
 
 
 class TrainingValDataSplitter:
-    def __init__(self, bags, split_rate=0.7):
-        self.bags = bags
-        self.raw_img = Image()
-        self.raw_tracklet_tag_list = list(Tracklet().frames_object.keys())
+    def __init__(self, bags, split_rate=0.7, use_raw = False):
+        if use_raw:
+            self.bags = bags
+            self.raw_img = Image()
+            self.raw_tracklet_tag_list = list(Tracklet().frames_object.keys())
 
-        # get all tags
-        self.tags_all = self.raw_img.get_tags()
-        self.size = len(self.tags_all)
+            # get all tags
+            self.tags_all = self.raw_img.get_tags()
+            self.size = len(self.tags_all)
 
-        # for holding bags, like '1/15'
-        self.training_bags = []
-        # for holding tags, like '1/15/00000'
-        self.training_tags = []
+            # for holding bags, like '1/15'
+            self.training_bags = []
+            # for holding tags, like '1/15/00000'
+            self.training_tags = []
 
-        self.val_bags = []
-        self.val_tags = []
-        self.split_rate = split_rate
-        self.real_split_rate = -1
+            self.val_bags = []
+            self.val_tags = []
+            self.split_rate = split_rate
+            self.real_split_rate = -1
 
-        # get training_bags, training_tags, val_bags, val_tags.
-        self.split_bags_by_tag_name()
+            # get training_bags, training_tags, val_bags, val_tags.
+            self.split_bags_by_tag_name()
+        else:
+            # for holding tags, like 000000, 000001
+            self.training_tags = []
+            self.val_tags = []
+            self.split_by_trainva_file()
+
 
     def check_frames_integrity(self, bag):
         # get number of images belong to this bag
@@ -138,6 +145,15 @@ class TrainingValDataSplitter:
                 self.training_bags += [i]
             else:
                 self.val_bags += [i]
+
+    def split_by_trainva_file(self):
+        with open(cfg.TRAIN_LIST, 'r') as fTrain:
+            self.training_tags = fTrain.read().splitlines()
+
+            # if train_file read successsfully
+            with open(cfg.VAL_LIST, 'r') as fVal:
+                self.val_tags = fVal.read().splitlines()
+
 
 
 if __name__ == '__main__':
