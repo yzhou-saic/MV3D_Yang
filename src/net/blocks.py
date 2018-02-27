@@ -181,17 +181,14 @@ def dropout(input, keep=1.0, name='drop'):
 
 #https://github.com/tensorflow/tensorflow/blob/master/tensorflow/g3doc/api_docs/python/functions_and_classes/shard4/tf.contrib.layers.batch_norm.md
 #http://www.bubufx.com/detail-1792794.html
-def bn (input, decay=0.9, eps=1e-5, name='bn'):
-    with tf.variable_scope(name) as scope:
-        bn = tf.cond(IS_TRAIN_PHASE,
-            lambda: tf.contrib.layers.batch_norm(input,  decay=decay, epsilon=eps, center=True, scale=True,
-                              is_training=1,reuse=None,
-                              updates_collections=None, scope=scope),
-            lambda: tf.contrib.layers.batch_norm(input, decay=decay, epsilon=eps, center=True, scale=True,
-                              is_training=0, reuse=True,
-                              updates_collections=None, scope=scope))
+def bn(input, decay=0.9, eps=1e-5, name='bn'):
+    block = tf.cond(IS_TRAIN_PHASE,
+        lambda: tf.contrib.layers.batch_norm(input,  decay=decay, epsilon=eps, center=True, scale=True,
+                          is_training=1,reuse=None, updates_collections=None, scope=name),
+        lambda: tf.contrib.layers.batch_norm(input, decay=decay, epsilon=eps, center=True, scale=True,
+                          is_training=0, reuse=True, updates_collections=None, scope=name))
 
-    return bn
+    return block
 
 
 def maxpool(input, kernel_size=(1,1), stride=[1,1,1,1], padding='SAME', name='max' ):
@@ -311,7 +308,7 @@ def conv2d_relu(input, num_kernels=1, kernel_size=(1,1), stride=[1,1,1,1], paddi
         block = relu(block)
     return block
 
-def linear_bn_relu(input,  num_hiddens=1, name='conv'):
+def linear_bn_relu(input,  num_hiddens, name='linear-bn-relu'):
     with tf.variable_scope(name) as scope:
         block = linear(input, num_hiddens=num_hiddens, has_bias=False)
         block = bn(block)

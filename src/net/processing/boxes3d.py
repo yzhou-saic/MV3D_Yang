@@ -19,7 +19,8 @@ def heat_map_rgb(minimum, maximum, value):
     b = int(max(0, 255*(1 - ratio)))
     r = int(max(0, 255*(ratio - 1)))
     g = 255 - b - r
-    return (r, g, b)
+    # return (r, g, b)
+    return (b, g, r)
 
 ##extension for 3d
 @jit
@@ -52,8 +53,8 @@ def top_box_to_box3d(boxes):
         for k in range(4):
             xx,yy = points[k]
             x,y  = top_to_lidar_coords(xx,yy)
-            boxes3d[n,k,  :] = x,y, -2  ## <todo>
-            boxes3d[n,4+k,:] = x,y,0.4
+            boxes3d[n,k,  :] = x,y, -1.73  #  -2
+            boxes3d[n,4+k,:] = x,y, -0.17  # 0.4
 
     return boxes3d
 

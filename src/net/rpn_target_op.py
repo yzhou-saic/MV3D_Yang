@@ -81,6 +81,40 @@ def make_bases(
 #     return ret
 
 
+def make_anchors_on_top(stride, image_shape, feature_shape, allowed_border=0):
+    # give out fixed bases with (w, h) in (6, 10) and (16, 38)
+    bases = np.array([[16, 14, 22, 24],
+                      [14, 16, 24, 22],
+                      [0, 11, 38, 27],
+                      [11, 0, 27, 38]])
+
+
+    H, W = feature_shape
+    img_height, img_width = image_shape
+
+    # anchors = shifted bases. Generate proposals from box deltas and anchors
+    shift_x = np.arange(0, W) * stride
+    shift_y = np.arange(0, H) * stride
+    shift_x, shift_y = np.meshgrid(shift_x, shift_y)
+    shifts = np.vstack((shift_x.ravel(), shift_y.ravel(), shift_x.ravel(), shift_y.ravel())).transpose()
+
+    B  = len(bases)
+    HW = len(shifts)
+    anchors   = bases.reshape((1, B, 4)) + shifts.reshape((1, HW, 4)).transpose((1, 0, 2))
+    anchors   = anchors.reshape((HW * B, 4)).astype(np.int32)
+    num_anchors = int(HW * B)
+
+
+    # only keep anchors inside the image
+    inside_inds = np.where(
+        (anchors[:, 0] >= -allowed_border) &
+        (anchors[:, 1] >= -allowed_border) &
+        (anchors[:, 2] < img_width  + allowed_border) &  # width
+        (anchors[:, 3] < img_height + allowed_border)    # height
+    )[0].astype(np.int32)
+
+    return anchors, inside_inds
+
 
 
 def make_anchors(bases, stride, image_shape, feature_shape, allowed_border=0):
@@ -135,8 +169,12 @@ def rpn_target( anchors, inside_inds, gt_labels,  gt_boxes):
              labels: pos_neg_inds's labels
              targets:  positive samples's bias to ground truth (top view bounding box regression targets)
     """
-    # inside_inds = np.append(inside_inds, np.arange(len(anchors), len(anchors) + len(gt_boxes)))
-    # anchors = np.vstack((anchors, gt_boxes))
+
+    # exclude gt_labels == 0
+    gt_indices = np.where(gt_labels > 0)[0]
+    gt_labels  = gt_labels[gt_indices]
+    gt_boxes   = gt_boxes[gt_indices]
+
     inside_anchors = anchors[inside_inds, :]
 
     # label: 1 is positive, 0 is negative, -1 is dont care
@@ -178,6 +216,11 @@ def rpn_target( anchors, inside_inds, gt_labels,  gt_boxes):
 
     idx_label  = np.where(labels != -1)[0]
     idx_target = np.where(labels ==  1)[0]
+
+    # # balance the pos and neg
+    # if len(idx_target) < num_fg:
+    #     aux_idx_target = np.random.choice(idx_target, size=num_fg-len(idx_target), replace=True)
+    #     idx_target = np.append(idx_target, aux_idx_target)
 
     pos_neg_inds   = inside_inds[idx_label]
     labels = labels[idx_label]
@@ -281,8 +324,15 @@ def draw_rpn_targets(image, anchors, pos_inds, targets):
 
 ## main ##----------------------------------------------------------------
 if __name__ == '__main__':
-    import time
-    t = time.time()
-    a = make_bases()
-    print(time.time() - t)
-    print(a)
+    # import time
+    # t = time.time()
+    # a = make_bases()
+    # print(time.time() - t)
+    # print(a)
+    img_shape     = (704, 800)
+    feature_shape = (352, 400)
+    stride = 4
+    anchors, inside_inds = make_anchors_adjusted(stride, img_shape, feature_shape)
+    print(anchors[:16])
+    print(anchors.shape)
+    print(inside_inds.shape)

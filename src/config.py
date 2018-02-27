@@ -54,18 +54,18 @@ __C.PREDICTED_XML_DIR = osp.join(__C.DATA_SETS_DIR, 'predicted')
 __C.CHECKPOINT_DIR=osp.join(__C.ROOT_DIR,'checkpoint')
 __C.LOG_DIR=osp.join(__C.ROOT_DIR,'log')
 
-__C.USE_RESNET_AS_TOP_BASENET = True
+__C.TOP_BASENET = 'vgg16'  # 'resnet' 'xception' 'vgg16'
 __C.TOP_CONV_KERNEL_SIZE = 32   #default 3
 
 __C.IMAGE_FUSION_DIABLE = False
-__C.RGB_BASENET = 'xception'  # 'resnet' 'xception' 'VGG'
+__C.RGB_BASENET = 'vgg16'  # 'resnet' 'xception' 'vgg16'
 if __C.RGB_BASENET == 'xception':
     __C.USE_IMAGENET_PRE_TRAINED_MODEL = True
 else:
     __C.USE_IMAGENET_PRE_TRAINED_MODEL =False
 
 __C.TRACKLET_GTBOX_LENGTH_SCALE = 1.6
-__C.PREDICT_SCORE_THRESHOLD = 0.5
+__C.PREDICT_SCORE_THRESHOLD = 0.2
 __C.TRACKLET_EXTRA_INFO = False
 
 # image crop config
@@ -142,8 +142,8 @@ elif __C.DATA_SETS_TYPE == 'kitti':
     TOP_Y_MAX = +40
     TOP_X_MIN = 0
     TOP_X_MAX = 70.4
-    TOP_Z_MIN = -2.5
-    TOP_Z_MAX = 0.5
+    TOP_Z_MIN = -1.8
+    TOP_Z_MAX = 0.8
 
     TOP_X_DIVISION = 0.1
     TOP_Y_DIVISION = 0.1

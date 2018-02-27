@@ -215,7 +215,7 @@ if __name__ == '__main__':
 
     data_splitter = TrainingValDataSplitter(train_n_val_dataset, use_raw)
 
-    with BatchLoading(tags=data_splitter.training_tags, require_shuffle=True, random_num=np.random.randint(100),
+    with BatchLoading(tags=data_splitter.training_tags, require_shuffle=True, random_num=np.random.randint(1000000),
                       is_flip=False) as training:
         with BatchLoading(tags=data_splitter.val_tags, queue_size=1, require_shuffle=True,random_num=666) as validation:
             train = mv3d.Trainer(train_set=training, validation_set=validation,

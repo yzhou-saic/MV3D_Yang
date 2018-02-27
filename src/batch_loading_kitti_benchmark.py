@@ -36,9 +36,10 @@ use_thread = True
 
 class BatchLoading_kitti_benchmark:
     def __init__(self, tags, queue_size=20, require_shuffle=False,
-                 require_log=False, is_testset=False, random_num=666, is_flip=False):
+                 require_log=False, is_testset=False, is_evaluation=False, random_num=None, is_flip=False):
 
         self.is_testset = is_testset
+        self.is_evaluation = is_evaluation
         self.shuffled = require_shuffle
         self.random_num = random_num
         self.preprocess = data.Preprocess()
@@ -126,31 +127,33 @@ class BatchLoading_kitti_benchmark:
 
         boxes3d = [self.preprocess.bbox3d_cam_to_velo(obj, calib.cam_to_velo) for obj in object_annots]
         labels = [self.preprocess.label(obj) for obj in object_annots]
+        types = [obj.type for obj in object_annots]
+        truncs = [obj.trunc for obj in object_annots]
+        occlus = [obj.occlu for obj in object_annots]
+
         # flip in y axis.
         if self.is_flip and len(boxes3d) > 0:
             if self.tag_index % self.flip_rate == 1:
                 top, rgb, boxes3d = self.preprocess.flip(rgb, top, boxes3d, axis=1)
             elif self.tag_index % self.flip_rate == 2:
                 top, rgb, boxes3d = self.preprocess.flip(rgb, top, boxes3d, axis=0)
-        return rgb, top, boxes3d, labels
+        return rgb, top, boxes3d, labels, types, truncs, occlus
 
     def get_shape(self):
         # todo for tracking, it means wasted a frame which will cause offset.
-        train_rgbs, train_tops, train_fronts, train_gt_labels, train_gt_boxes3d, _, _ = self.load()
+        train_rgbs, train_tops, train_gt_labels, train_gt_boxes3d, _, _, _, _, _ = self.load()
         top_shape = train_tops[0].shape
-        front_shape = train_fronts[0].shape
         rgb_shape = train_rgbs[0].shape
 
-        return top_shape, front_shape, rgb_shape
+        return top_shape, rgb_shape
 
     def data_preprocessed(self):
         # only feed in frames with ground truth labels and bboxes during training, or the training nets will break.
         skip_frames = True
         while skip_frames:
-            fronts = []
             frame_tag = self.tags[self.tag_index]
             rgb, lidar, object_annots, calib = self.load_from_one_tag(frame_tag)
-            rgb, top, boxes3d, labels = self.preprocess_one_frame(rgb, lidar, calib, object_annots)
+            rgb, top, boxes3d, labels, types, truncs, occlus = self.preprocess_one_frame(rgb, lidar, calib, object_annots)
             if self.require_log and not self.is_testset:
                 draw_bbox_on_rgb(rgb, boxes3d, frame_tag, calib.velo_to_rgb)
                 draw_bbox_on_lidar_top(top, boxes3d, frame_tag)
@@ -172,11 +175,11 @@ class BatchLoading_kitti_benchmark:
                 boxes3d = batch_gt_boxes3d_in_range
                 # if no gt labels inside defined range, discard this training frame.
                 # now skip the training samples without positive gt
-                if not is_gt_inside_range or np.sum(labels) == 0:
+                if (not is_gt_inside_range) or (np.sum(labels) == 0 and not self.is_evaluation):
                     skip_frames = True
 
-        return np.array([rgb]), np.array([top]), np.array([fronts]), np.array([labels]), \
-               np.array([boxes3d]), frame_tag, calib
+        return np.array([rgb]), np.array([top]), np.array([labels]), \
+               np.array([boxes3d]), frame_tag, calib, types, truncs, occlus
 
     def find_empty_block(self):
         idx = -1
@@ -402,7 +405,7 @@ if __name__ == '__main__':
             t0 = time.time()
             loaded_data = bl.load()
             print('use time =', time.time() - t0)
-            batch_rgb_images, batch_top_view, batch_front_view, \
+            batch_rgb_images, batch_top_view, \
                 batch_gt_labels, batch_gt_boxes3d, frame_id, calib = loaded_data
             #print("batch_gt_labels:")
             #print(batch_gt_labels)

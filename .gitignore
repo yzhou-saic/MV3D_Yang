@@ -32,3 +32,7 @@ data
 pretrained_weights
 experiments
 external_modules
+results
+results_img
+results_img_setting1
+results_setting1

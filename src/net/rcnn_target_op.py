@@ -10,6 +10,11 @@ from net.utility.draw import *
 
 
 def rcnn_target(rois, gt_labels, gt_boxes, gt_boxes3d):
+    # exclude gt_labels == 0
+    gt_indices = np.where(gt_labels > 0)[0]
+    gt_labels  = gt_labels[gt_indices]
+    gt_boxes   = gt_boxes[gt_indices]
+    gt_boxes3d = gt_boxes3d[gt_indices]
 
     # Include "ground-truth" in the set of candidate rois
     rois = rois.reshape(-1,5)  # Proposal (i, x1, y1, x2, y2) coming from RPN
@@ -33,9 +38,16 @@ def rcnn_target(rois, gt_labels, gt_boxes, gt_boxes3d):
 
     # Select foreground RoIs as those with >= FG_THRESH overlap
     fg_inds = np.where(max_overlaps >= CFG.TRAIN.RCNN_FG_THRESH_LO)[0]
-    fg_rois_per_this_image = int(min(fg_rois_per_image, fg_inds.size))
     if fg_inds.size > 0:
-        fg_inds = np.random.choice(fg_inds, size=fg_rois_per_this_image, replace=False)
+        if len(fg_inds) >= fg_rois_per_image:
+            fg_inds = np.random.choice(fg_inds, size=int(fg_rois_per_image), replace=False)
+        # # balance pos and neg
+        # else:
+        #     aux_fg_inds = np.random.choice(fg_inds, size=int(fg_rois_per_image)-len(fg_inds), replace=True)
+        #     fg_inds = np.append(fg_inds, aux_fg_inds)
+
+    fg_rois_per_this_image = len(fg_inds)
+
 
     # Select background RoIs as those within [BG_THRESH_LO, BG_THRESH_HI)
     bg_inds = np.where(max_overlaps < CFG.TRAIN.RCNN_BG_THRESH_HI)[0]
@@ -44,12 +56,11 @@ def rcnn_target(rois, gt_labels, gt_boxes, gt_boxes3d):
     if bg_inds.size > 0:
         bg_inds = np.random.choice(bg_inds, size=bg_rois_per_this_image, replace=False)
 
-
     # The indices that we're selecting (both fg and bg)
     keep   = np.append(fg_inds, bg_inds)
     rois   = extended_rois[keep]
     labels = labels[keep]                # Select sampled values from various arrays:
-    labels[fg_rois_per_this_image:] = 0  # Clamp la bels for the background RoIs to 0
+    labels[fg_rois_per_this_image:] = 0  # Clamp labels for the background RoIs to 0
 
 
     gt_boxes3d = gt_boxes3d[gt_assignment[keep]]
